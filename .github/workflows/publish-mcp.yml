@@ -11,6 +11,7 @@ on:
       - 'prd-generator/**'
       - 'mcp-server/src/**'
       - 'mcp-server/package.json'
+      - 'mcp-server/package-lock.json'
       - 'mcp-server/tsconfig.json'
       - 'mcp-server/scripts/**'
       - '.github/workflows/publish-mcp.yml'
