@@ -44,15 +44,10 @@ jobs:
         working-directory: mcp-server
         run: npm run build
 
-      - name: Test npm auth (debug)
-        working-directory: mcp-server
-        run: |
-          echo "Testing npm authentication..."
-          npm whoami || echo "npm whoami failed"
-          npm config list || echo "npm config list failed"
-
       - name: Bump version and publish
         working-directory: mcp-server
         run: |
           npm version patch --no-git-tag-version
           npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
