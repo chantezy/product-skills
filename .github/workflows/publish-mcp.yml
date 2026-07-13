@@ -13,6 +13,7 @@ on:
       - 'mcp-server/package.json'
       - 'mcp-server/package-lock.json'
       - 'mcp-server/tsconfig.json'
+      - 'mcp-server/README.md'
       - 'mcp-server/scripts/**'
       - '.github/workflows/publish-mcp.yml'
 
