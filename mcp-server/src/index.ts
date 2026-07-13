@@ -18,7 +18,7 @@ const server = new McpServer({
 
 server.tool(
   "list_skills",
-  "列出所有可用的产品设计技能及其触发条件。应先调用此工具了解可用技能。",
+  "列出所有可用的产品设计技能及其触发条件。应先调用此工具了解可用技能，然后根据用户意图选择最匹配的 skill。",
   {},
   async () => {
     const skills = listSkills();
@@ -35,10 +35,12 @@ server.tool(
     }
 
     const lines = skills.map(
-      (s) => `- **${s.name}** — ${s.description || "无描述"}`,
+      (s) =>
+        `- **${s.name}**  —  ${s.trigger || "查看描述了解适用场景"}`,
     );
     const text =
       `# 可用产品设计技能 (${skills.length})\n\n` +
+      `请根据用户意图，选择最匹配的 skill 调用 \`get_skill\`：\n\n` +
       lines.join("\n") +
       `\n\n---\n使用 \`get_skill\` 工具并提供技能名称来获取完整的工作流程指令。`;
 

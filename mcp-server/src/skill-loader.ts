@@ -9,6 +9,7 @@ const SKILLS_DIR = path.join(__dirname, "..", "skills");
 export interface SkillMeta {
   name: string;
   description: string;
+  trigger: string;
   directory: string;
 }
 
@@ -21,6 +22,7 @@ export interface SkillDetail extends SkillMeta {
 interface Frontmatter {
   name?: string;
   description?: string;
+  trigger?: string;
 }
 
 function parseFrontmatter(content: string): { fm: Frontmatter; body: string } {
@@ -36,8 +38,10 @@ function parseFrontmatter(content: string): { fm: Frontmatter; body: string } {
     // Fallback: simple regex parsing if yaml.load fails
     const nameMatch = match[1].match(/^name:\s*(.+)$/m);
     const descMatch = match[1].match(/^description:\s*(.+)$/m);
+    const triggerMatch = match[1].match(/^trigger:\s*(.+)$/m);
     if (nameMatch) fm.name = nameMatch[1].trim().replace(/^["']|["']$/g, "");
     if (descMatch) fm.description = descMatch[1].trim().replace(/^["']|["']$/g, "");
+    if (triggerMatch) fm.trigger = triggerMatch[1].trim().replace(/^["']|["']$/g, "");
   }
 
   return { fm, body: match[2] || "" };
@@ -59,15 +63,24 @@ export function listSkills(): SkillMeta[] {
     const entryPath = path.join(SKILLS_DIR, entry);
     const skillMdPath = path.join(entryPath, "SKILL.md");
 
-    if (fs.statSync(entryPath).isDirectory() && fs.existsSync(skillMdPath)) {
-      const content = fs.readFileSync(skillMdPath, "utf-8");
-      const { fm } = parseFrontmatter(content);
-      skills.push({
-        name: fm.name || normalizeSkillDir(entry),
-        description: fm.description || "",
-        directory: entry,
-      });
-    }
+      if (fs.statSync(entryPath).isDirectory() && fs.existsSync(skillMdPath)) {
+        const content = fs.readFileSync(skillMdPath, "utf-8");
+        const { fm } = parseFrontmatter(content);
+        let trigger = fm.trigger || "";
+        // Auto-extract trigger from description if not explicitly set
+        if (!trigger && fm.description) {
+          const triggerMatch = fm.description.match(/当[^(时|触发)]*?(?:时|触发)/);
+          if (triggerMatch) {
+            trigger = triggerMatch[0];
+          }
+        }
+        skills.push({
+          name: fm.name || normalizeSkillDir(entry),
+          description: fm.description || "",
+          trigger,
+          directory: entry,
+        });
+      }
   }
 
   return skills;
@@ -103,6 +116,7 @@ export function getSkill(name: string): SkillDetail | null {
   return {
     name: fm.name || skill.name,
     description: fm.description || skill.description,
+    trigger: fm.trigger || skill.trigger || "",
     directory: skill.directory,
     content,
     body,
