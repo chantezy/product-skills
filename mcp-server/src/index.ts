@@ -18,7 +18,7 @@ const server = new McpServer({
 
 server.tool(
   "list_skills",
-  "列出所有可用的产品设计技能及其触发条件。使用策略：1. 当用户明确指定技能时，直接调用 get_skill。2. 当用户意图模糊或无法准确匹配时，先调用 list_skills 列出所有技能标题和触发条件，请用户确认选择。3. 当用户只说'帮我设计'、'分析需求'、'写文档'等模糊表述时，必须调用 list_skills 让用户明确选择。",
+  "列出所有可用的产品设计技能及其触发条件。使用策略：1. 当用户明确指定技能时，直接调用 get_skill。2. 当用户意图模糊或无法准确匹配时，先调用 list_skills 列出所有技能标题和触发条件，请用户确认选择。3. 当用户只说'帮我设计'、'分析需求'、'写文档'等模糊表述时，必须调用 list_skills 让用户明确选择。4. 如果当前对话中已经调用过 get_skill 获取了某个 skill 的内容，请直接使用已加载的内容，不要重复调用。",
   {},
   async () => {
     const skills = listSkills();
@@ -52,7 +52,7 @@ server.tool(
 
 server.tool(
   "get_skill",
-  "获取指定技能的完整 SKILL.md 内容，包括工作流程、输出模板和可用的参考文件列表。",
+  "获取指定技能的完整 SKILL.md 内容，包括工作流程、输出模板和可用的参考文件列表。注意：如果当前对话中已经成功获取过该 skill 的内容，请直接使用已加载的内容，无需重复调用本工具。",
   {
     name: z.string().describe(
       "技能名称，支持 kebab-case（如 'prd-generator'、'b-design-diverge'）",
