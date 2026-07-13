@@ -26,6 +26,10 @@
   ],
   "author": "chantezy",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chantezy/skills"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.22.0",
     "js-yaml": "^4.1.0",
