@@ -48,11 +48,15 @@ jobs:
       - name: Bump version and publish
         working-directory: mcp-server
         run: |
-          npm version patch --no-git-tag-version
-          npm publish --provenance --access public || {
-            echo "Version conflict, bumping again..."
+          for i in 1 2 3 4 5; do
             npm version patch --no-git-tag-version
-            npm publish --provenance --access public
-          }
+            if npm publish --provenance --access public; then
+              echo "Published successfully."
+              exit 0
+            fi
+            echo "Publish attempt $i failed (likely version conflict), bumping again..."
+          done
+          echo "Failed after 5 attempts."
+          exit 1
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
