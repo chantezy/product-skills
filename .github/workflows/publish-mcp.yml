@@ -1,4 +1,14 @@
-name: Publish MCP Package
+name: Publish MCP Server (Trusted Publisher)
+
+# 使用 npm 官方推荐的 Trusted Publishing（OIDC 无 token 发布）
+# 官方文档：https://docs.npmjs.com/trusted-publishers
+#
+# 前置条件（必须先在 npmjs.com 配置好 Trusted Publisher）：
+#   包设置 → Settings → Trusted Publisher → 添加 GitHub Actions
+#     - Organization: chantezy
+#     - Repository: product-skills
+#     - Workflow filename: publish-mcp.yml
+#     - Allowed actions: npm publish
 
 on:
   push:
@@ -13,26 +23,30 @@ on:
       - 'mcp-server/package.json'
       - 'mcp-server/package-lock.json'
       - 'mcp-server/tsconfig.json'
-      - 'mcp-server/README.md'
       - 'mcp-server/scripts/**'
       - '.github/workflows/publish-mcp.yml'
+  workflow_dispatch:  # 支持手动触发，便于调试
+
+permissions:
+  id-token: write   # Trusted Publisher 核心：OIDC 令牌权限
+  contents: write   # 回写版本号到仓库
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
+    runs-on: ubuntu-latest  # 必须用 GitHub-hosted runner（Trusted Publisher 不支持 self-hosted）
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Trusted Publisher 要求 Node >= 22.14.0（自带 npm 11.5.1+）
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: mcp-server/package-lock.json
 
       - name: Sync skills
         run: bash mcp-server/scripts/sync-skills.sh
@@ -45,19 +59,29 @@ jobs:
         working-directory: mcp-server
         run: npm run build
 
-      - name: Bump version and publish
+      - name: Bump patch version
         working-directory: mcp-server
+        run: npm version patch --no-git-tag-version
+
+      # 可选：dry-run 验证（不实际发布）
+      - name: Verify publish readiness (dry-run)
+        working-directory: mcp-server
+        run: npm publish --dry-run --access public
+        continue-on-error: true
+
+      # Trusted Publisher 核心步骤：
+      # - npm CLI 自动检测到 OIDC 环境（GitHub Actions + id-token:write）
+      # - 向 npm 换取短期发布令牌（几分钟有效，仅限当前 workflow）
+      # - 发布后自动生成 provenance 签名证明
+      # - 注意：不需要 --provenance flag，也不需要 NODE_AUTH_TOKEN
+      - name: Publish to npm with Trusted Publisher (OIDC)
+        working-directory: mcp-server
+        run: npm publish --access public
+
+      - name: Commit version bump
         run: |
-          for i in 1 2 3 4 5; do
-            npm version patch --no-git-tag-version
-            if npm publish --provenance --access public; then
-              echo "Published successfully."
-              exit 0
-            fi
-            echo "Publish attempt $i failed (likely version conflict), bumping again..."
-          done
-          echo "Failed after 5 attempts."
-          exit 1
-        # Trusted Publisher 模式：通过 OIDC + npm 端仓库绑定认证，无需 NPM_TOKEN。
-        # 上一次用 token 发布已让 npm 接受新仓库 chantezy/product-skills 的 provenance 绑定，
-        # 现可完全依赖 Trusted Publisher。
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add mcp-server/package.json mcp-server/package-lock.json
+          git commit -m "chore: bump mcp-server version [skip ci]" || true
+          git push
