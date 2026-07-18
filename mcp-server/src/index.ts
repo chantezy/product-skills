@@ -3,7 +3,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { listSkills, getSkill, getReference } from "./skill-loader.js";
+import { listSkills, getSkill, getReference, routeIntent } from "./skill-loader.js";
 import { readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -16,9 +16,78 @@ const server = new McpServer({
   version: pkg.version,
 });
 
+// ----- Tool: route_intent (Intent Router) -----
+// Fast skill matching based on trigger + description. Does NOT load full skill content.
+// Returns: best match (high confidence), top-3 candidates (medium confidence), or all skills (fallback).
+server.tool(
+  "route_intent",
+  "意图路由器：根据用户输入快速匹配最合适的产品设计技能。仅基于 trigger + description 做轻量级关键词匹配，不加载完整 Skill 内容。匹配策略：高置信度直接返回最佳技能，中置信度返回 top-3 候选，无法匹配时返回所有技能列表让用户选择。优先调用此工具做快速匹配，匹配后再调用 get_skill 获取完整内容。",
+  {
+    user_intent: z
+      .string()
+      .describe("用户的原始意图描述或问题文本，例如 '我想写一份PRD'、'帮我做交互评估'"),
+  },
+  async ({ user_intent }) => {
+    const result = routeIntent(user_intent);
+
+    if (result.matched && result.best) {
+      // High confidence match
+      const best = result.best;
+      const text =
+        `# 意图匹配结果：高置信度 ✅\n\n` +
+        `**输入意图：** ${user_intent}\n\n` +
+        `**推荐技能：** \`${best.name}\`\n\n` +
+        `**触发场景：** ${best.trigger || "(未设置)"}\n\n` +
+        `**描述：** ${best.description}\n\n` +
+        `---\n` +
+        `匹配分数：${result.scores?.[0]?.score ?? "N/A"}，命中关键词：${result.scores?.[0]?.matchedKeywords.join("、") || "无"}\n\n` +
+        `**下一步：** 调用 \`get_skill\` 工具，参数 name="${best.name}" 获取完整工作流指令。`;
+      return {
+        content: [{ type: "text" as const, text }],
+      };
+    }
+
+    if (!result.fallback && result.candidates.length > 0) {
+      // Medium confidence: top-3 candidates
+      const lines = result.candidates.map((s, i) => {
+        const score = result.scores?.[i];
+        return (
+          `### ${i + 1}. \`${s.name}\`\n` +
+          `- **触发场景：** ${s.trigger || "(未设置)"}\n` +
+          `- **描述：** ${s.description}\n` +
+          `- **匹配分数：** ${score?.score ?? "N/A"}，命中：${score?.matchedKeywords.join("、") || "无"}`
+        );
+      });
+      const text =
+        `# 意图匹配结果：中置信度 ⚠️\n\n` +
+        `**输入意图：** ${user_intent}\n\n` +
+        `找到 ${result.candidates.length} 个候选技能，请根据具体需求选择：\n\n` +
+        lines.join("\n\n") +
+        `\n\n---\n**下一步：** 调用 \`get_skill\` 工具，参数 name="<选中的技能名>" 获取完整工作流指令。`;
+      return {
+        content: [{ type: "text" as const, text }],
+      };
+    }
+
+    // Fallback: no match, return all skills
+    const lines = result.candidates.map((s) => {
+      return `- **${s.name}** — ${s.trigger || s.description}`;
+    });
+    const text =
+      `# 意图匹配结果：未找到匹配（兜底策略）\n\n` +
+      `**输入意图：** ${user_intent}\n\n` +
+      `无法明确匹配到具体技能，以下是全部 ${result.total} 个可用技能，请选择最合适的一个：\n\n` +
+      lines.join("\n") +
+      `\n\n---\n**下一步：** 调用 \`get_skill\` 工具，参数 name="<选中的技能名>" 获取完整工作流指令。`;
+    return {
+      content: [{ type: "text" as const, text }],
+    };
+  },
+);
+
 server.tool(
   "list_skills",
-  "列出所有可用的产品设计技能及其触发条件。使用策略：1. 当用户明确指定技能时，直接调用 get_skill。2. 当用户意图模糊或无法准确匹配时，先调用 list_skills 列出所有技能标题和触发条件，请用户确认选择。3. 当用户只说'帮我设计'、'分析需求'、'写文档'等模糊表述时，必须调用 list_skills 让用户明确选择。4. 如果当前对话中已经调用过 get_skill 获取了某个 skill 的内容，请直接使用已加载的内容，不要重复调用。",
+  "列出所有可用的产品设计技能及其触发条件。使用策略：1. 优先调用 route_intent 做意图匹配。2. 当用户明确指定技能时，直接调用 get_skill。3. 仅当需要浏览全部技能时才调用此工具。",
   {},
   async () => {
     const skills = listSkills();
@@ -42,7 +111,7 @@ server.tool(
       `# 可用产品设计技能 (${skills.length})\n\n` +
       `请根据用户意图，选择最匹配的 skill 调用 \`get_skill\`：\n\n` +
       lines.join("\n") +
-      `\n\n---\n使用 \`get_skill\` 工具并提供技能名称来获取完整的工作流程指令。`;
+      `\n\n---\n使用 \`get_skill\` 工具并提供技能名称来获取完整的工作流程指令。\n使用 \`route_intent\` 工具传入用户意图，可自动匹配最合适的技能。`;
 
     return {
       content: [{ type: "text" as const, text }],
