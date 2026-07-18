@@ -58,6 +58,8 @@ jobs:
           done
           echo "Failed after 5 attempts."
           exit 1
-        # Trusted Publisher 模式：通过 OIDC + npm 端仓库绑定认证，
-        # 无需 NPM_TOKEN。前提：已在 npm 包设置页将本 GitHub 仓库
-        # 链接到 @chantezy/mcp-product-design（Publishing access → 关联仓库）。
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # 临时过渡：用 NPM_TOKEN 认证发布一次，让 npm registry 接受
+        # 新仓库 chantezy/product-skills 的 provenance 绑定。
+        # 成功后可再次移除 NODE_AUTH_TOKEN，切回纯 Trusted Publisher 模式。
