@@ -23,6 +23,7 @@ on:
       - 'mcp-server/package.json'
       - 'mcp-server/package-lock.json'
       - 'mcp-server/tsconfig.json'
+      - 'mcp-server/README.md'
       - 'mcp-server/scripts/**'
       - '.github/workflows/publish-mcp.yml'
   workflow_dispatch:  # 支持手动触发，便于调试
