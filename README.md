@@ -17,6 +17,21 @@
 
 ---
 
+## 📦 可用技能
+
+| Skill | 用途 |
+|-------|------|
+| `requirements-content-analysis` | 需求内容结构化解析与交互设计分析 |
+| `b-design-diverge` | B 端设计方案快速发散与多方案对比 |
+| `interaction-design-eval` | 交互设计量化评估与职级匹配 |
+| `interaction-spec` | 交互说明文档生成 |
+| `prd-generator` | PRD 需求文档生成 |
+| `prd-lint` | PRD 逻辑评审与跨文档冲突检测 |
+
+> 除手动上传外，也可通过 MCP 服务 [`@chantezy/mcp-product-design`](./mcp-server) 在 AI 编码助手中直接调用。
+
+---
+
 ## 🚀 快速开始
 
 ### 方式一：直接使用（推荐）

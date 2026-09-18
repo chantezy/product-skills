@@ -11,6 +11,7 @@
 | `interaction-design-eval` | 交互设计量化评估与职级匹配 |
 | `interaction-spec` | 交互说明文档生成 |
 | `prd-generator` | PRD 需求文档生成 |
+| `prd-lint` | PRD 逻辑评审与跨文档冲突检测 |
 
 ## MCP 工具
 
