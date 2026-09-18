@@ -1,6 +1,6 @@
 {
   "name": "@chantezy/mcp-product-design",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "Product design skills MCP server - structured design workflow tools for AI agents",
   "type": "module",
   "main": "./dist/index.js",
